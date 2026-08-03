@@ -121,8 +121,11 @@ Returns service status.
 **Response**
 
 ```json
-{ "answer": "…model-generated answer…", "status": "success" }
+{ "answer": "…model-generated answer…", "mode": "prompt_only_faq", "status": "success" }
 ```
+
+`/chat` answers HR questions from a hard-coded, fictional HR policy (see
+**Prompt-only HR FAQ** below). The `mode` field records the answering strategy.
 
 **Validation rules for `message`:** required, string, 1–2000 characters, not blank/whitespace-only.
 Invalid input returns `422`. Provider or configuration failures return safe `5xx` responses.
@@ -132,6 +135,65 @@ Example request:
 ```bash
 curl -X POST http://127.0.0.1:8000/chat -H "Content-Type: application/json" -d "{\"message\": \"How do I set up my work laptop?\"}"
 ```
+
+---
+
+## Knowledge features
+
+### Prompt-only HR FAQ
+
+`POST /chat` answers questions using a small, hard-coded fictional HR policy
+(annual leave, remote work, working hours, sick-leave reporting) injected directly
+into the model prompt — see [`hr_faq.py`](hr_faq.py). There is **no** retrieval,
+embeddings, or vector database here; the policy is a Python string. The model is
+instructed to answer only from that policy, return a fixed fallback when a question
+is not covered, and correct false assumptions instead of agreeing with them.
+
+**Why it does not scale:** the entire policy must be pasted into every prompt. A
+real handbook is far too large for that, and the approach cannot cite a source
+document. This motivates retrieval (planned, not yet implemented).
+
+**Run and test:** start the API (below) and POST to `/chat`, or run
+`pytest -q tests/test_faq.py`.
+
+### Embedding similarity experiment
+
+[`embedding_experiment.py`](embedding_experiment.py) is a standalone script
+(separate from the API) that embeds ~10 short sentences with the Gemini embedding
+model, picks one as the query, and ranks the rest by cosine similarity, printing a
+rank / score / sentence table.
+
+```powershell
+python embedding_experiment.py
+```
+
+The similarity **score** measures how close two sentences are in meaning-space
+(cosine of the angle between their vectors), roughly in `[-1, 1]`. **Warning:** a
+high score does not prove two sentences mean the same thing. Negated sentences
+(e.g. "Employees cannot work remotely") share almost all their words with the
+positive version and often score high despite meaning the opposite. Nothing is
+stored — no vector database is created.
+
+### Synthetic knowledge base
+
+[`company_docs/`](company_docs) contains seven fully synthetic policy documents for
+the fictional company *Northstar Analytics*, plus a machine-readable
+[`manifest.json`](company_docs/manifest.json):
+
+- `annual_leave_policy.txt`
+- `remote_work_policy.txt`
+- `sick_leave_policy.txt`
+- `it_security_policy.txt`
+- `code_of_conduct.txt`
+- `employee_benefits_guide.txt`
+- `onboarding_checklist.txt`
+
+These are **source documents only**. Ingestion, chunking, embeddings, a vector
+database, and retrieval (RAG) are intentionally **not** implemented yet. Tests
+validate file existence, manifest consistency, unique IDs, required metadata, and
+that the core facts do not contradict the FAQ policy.
+
+See [LEARNING.md](LEARNING.md) for detailed notes on each feature.
 
 ---
 
@@ -170,12 +232,20 @@ tracebacks) are logged internally and never returned to the client.
 .
 ├── main.py                 # FastAPI app: routes, request/response models, error mapping
 ├── model_client.py         # Reusable Gemini client, error hierarchy, logging, latency
+├── hr_faq.py               # Prompt-only HR FAQ policy + prompt builder
+├── similarity.py           # Cosine-similarity utility (NumPy)
+├── embedding_experiment.py # Standalone embeddings + semantic-similarity demo
 ├── first_call.py           # Minimal standalone example of a single model call
+├── company_docs/           # Synthetic knowledge base (7 docs + manifest.json)
 ├── requirements.txt        # Dependencies
 ├── .env.example            # Environment variable template (placeholder only)
 ├── tests/
 │   ├── test_api.py         # API endpoint tests
-│   └── test_model_client.py# Model client unit tests
+│   ├── test_model_client.py# Model client unit tests
+│   ├── test_faq.py         # HR FAQ logic tests
+│   ├── test_embeddings.py  # Cosine similarity + embedding helper tests
+│   └── test_company_docs.py# Knowledge-base validation tests
+├── LEARNING.md             # Educational notes
 └── README.md
 ```
 
