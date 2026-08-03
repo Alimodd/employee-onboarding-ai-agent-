@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
+import hr_faq
 import main
 import model_client
 
@@ -63,21 +64,32 @@ def test_chat_oversized_422():
 # /chat success + failure flows (model client patched)
 # --------------------------------------------------------------------------- #
 def test_chat_success(monkeypatch):
+    # /chat routes through the FAQ logic; patch the low-level model call so the
+    # user's message is embedded in the prompt sent to the provider.
     monkeypatch.setattr(
-        model_client, "generate_response", lambda msg: f"echo::{msg}"
+        model_client, "generate_response", lambda prompt: "20 working days per year."
     )
-    resp = client.post("/chat", json={"message": "What is the remote work policy?"})
+    resp = client.post("/chat", json={"message": "How many annual leave days?"})
     assert resp.status_code == 200
     body = resp.json()
     assert body["status"] == "success"
-    assert body["answer"] == "echo::What is the remote work policy?"
+    assert body["mode"] == hr_faq.MODE
+    assert body["answer"] == "20 working days per year."
 
 
-def test_chat_success_not_hardcoded(monkeypatch):
-    monkeypatch.setattr(model_client, "generate_response", lambda msg: msg.upper())
-    a = client.post("/chat", json={"message": "hello"}).json()["answer"]
-    b = client.post("/chat", json={"message": "world"}).json()["answer"]
-    assert a == "HELLO" and b == "WORLD"
+def test_chat_prompt_includes_user_message(monkeypatch):
+    seen = {}
+
+    def capture(prompt):
+        seen["prompt"] = prompt
+        return "ok"
+
+    monkeypatch.setattr(model_client, "generate_response", capture)
+    client.post("/chat", json={"message": "Can I work from home?"})
+    # The user's question must reach the model inside the grounded prompt.
+    assert "Can I work from home?" in seen["prompt"]
+    # The hard-coded policy must be part of the prompt (prompt-only grounding).
+    assert "annual leave" in seen["prompt"].lower()
 
 
 def test_chat_configuration_error_503(monkeypatch):
