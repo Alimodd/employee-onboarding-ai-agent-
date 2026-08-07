@@ -82,3 +82,45 @@ machine-readable [`manifest.json`](company_docs/manifest.json).
 **What comes next:** Chunk the documents, embed the chunks, store them in a vector
 database, and retrieve them to ground the assistant's answers (RAG). None of that
 is implemented yet — this step only establishes clean, consistent source material.
+
+---
+
+## Ingestion pipeline (loading, chunking, metadata, Chroma)
+
+**What was built:** A small, explicit ingestion pipeline that turns the source
+policy files into embedded, metadata-rich chunks stored in a local vector
+database. Three modules plus one runnable entry point:
+
+- [`document_loader.py`](document_loader.py) — reads `manifest.json` and the
+  `.txt` files into `Document` objects (text + cleaned metadata).
+- [`chunker.py`](chunker.py) — splits each document into overlapping,
+  section-aware `Chunk` objects and attaches metadata to every chunk.
+- [`vector_store.py`](vector_store.py) — embeds chunks with Gemini
+  (`gemini-embedding-001`) and upserts them into a persistent Chroma collection.
+- [`ingest.py`](ingest.py) — the manual entry point (`python ingest.py`) that
+  runs the whole flow and prints a summary.
+
+**Data flow:**
+
+    policy file → loader → Document → text splitter → chunk → metadata
+                → embedding model → embedding vector → Chroma collection
+
+- **Input:** the seven synthetic policy files and their manifest.
+- **Output:** a persistent Chroma collection `company_policies` in `chroma_db/`,
+  holding one entry per chunk (id, text, embedding, metadata).
+- **External API:** Google Gemini embeddings via `vector_store.embed_texts`.
+- **Data stored:** chunk ids, texts, embeddings, and metadata on disk (Chroma).
+- **Edge cases handled:** missing files / missing metadata (filled with
+  `"unknown"`), empty documents (skipped), very short documents (one chunk).
+- **Re-run safety:** chunk ids are deterministic (`<document_id>::chunk-<n>`) and
+  stored with `upsert`, so re-running overwrites instead of duplicating.
+- **Main limitation:** this only *builds* the index. There is no query,
+  retrieval, or top-k search yet — that is the next step.
+
+**Manual checks:**
+
+- `python document_loader.py` — inspect loaded documents.
+- `python chunker.py` — inspect the Document → chunks → metadata transformation.
+- `python ingest.py` — run the full pipeline and see the stored result.
+- `pytest tests/test_ingestion.py` — loading, chunking, metadata, edge cases,
+  and Chroma storage (embeddings mocked, temp DB).
