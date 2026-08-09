@@ -13,6 +13,9 @@ chroma_db/
 # Company policy documents (kept local only, not published)
 company_docs/
 
+# Planning / course documents (kept local only, not published)
+*.docx
+
 # Virtual environments
 .venv/
 venv/
