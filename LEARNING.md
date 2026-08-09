@@ -124,3 +124,44 @@ database. Three modules plus one runnable entry point:
 - `python ingest.py` — run the full pipeline and see the stored result.
 - `pytest tests/test_ingestion.py` — loading, chunking, metadata, edge cases,
   and Chroma storage (embeddings mocked, temp DB).
+
+---
+
+## Semantic retrieval (search, no LLM)
+
+**What was built:** [`retriever.py`](retriever.py) — semantic search over the
+already-ingested Chroma collection. It embeds a user query with the same model
+used at ingestion, then uses Chroma's built-in similarity search to return the
+Top-K nearest chunks. There is **no LLM and no generated answer** at this stage;
+the system only retrieves.
+
+**Data flow:**
+
+    user question → query embedding → Chroma similarity search
+                  → Top-K nearest chunks → chunk text + metadata + distance
+
+- **Important function:** `search_documents(query, top_k=3, country=None,
+  department=None, document_type=None)`.
+  - **Input:** a query string, an optional result count, and optional exact-match
+    metadata filters.
+  - **Output:** a list (nearest first) of
+    `{"id", "text", "metadata", "distance"}`. `distance` is Chroma's vector
+    distance — smaller means more similar.
+  - **Calls:** `vector_store.embed_texts` (query embedding) and
+    `vector_store.get_collection` (opens the existing persistent DB; never
+    rebuilds it).
+  - **Stores:** nothing — read-only.
+- **External API:** Google Gemini embeddings (for the query only).
+- **Edge cases handled:** blank query and non-positive `top_k` raise
+  `ValueError`; an empty collection returns `[]`; asking for more than exists is
+  capped to the collection size.
+- **Metadata filtering:** optional `country` / `department` / `document_type`
+  become a Chroma `where` clause (a single field, or `$and` for several),
+  applied before ranking by similarity.
+- **Main limitation:** retrieval finds *relevant* chunks; it does not *answer*.
+  Turning chunks into a written answer is the next step (RAG).
+
+**Manual check:** `python retriever.py` runs several example queries (direct,
+paraphrased, unrelated, and one country-filtered) and prints rank, source,
+metadata, distance, and a preview for each result. Tests:
+`pytest tests/test_retrieval.py`.
