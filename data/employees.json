@@ -1,0 +1,66 @@
+[
+  {
+    "employee_id": 101,
+    "name": "Anke De Vries",
+    "department": "Engineering",
+    "role": "Backend Engineer",
+    "country": "Belgium",
+    "start_date": "2026-02-01"
+  },
+  {
+    "employee_id": 102,
+    "name": "Bram Peeters",
+    "department": "Finance",
+    "role": "Financial Analyst",
+    "country": "Belgium",
+    "start_date": "2026-01-15"
+  },
+  {
+    "employee_id": 103,
+    "name": "Sofie Janssen",
+    "department": "HR",
+    "role": "HR Business Partner",
+    "country": "Belgium",
+    "start_date": "2025-11-03"
+  },
+  {
+    "employee_id": 104,
+    "name": "Daan Bakker",
+    "department": "Engineering",
+    "role": "Frontend Engineer",
+    "country": "Netherlands",
+    "start_date": "2026-03-10"
+  },
+  {
+    "employee_id": 105,
+    "name": "Femke Visser",
+    "department": "Operations",
+    "role": "Operations Coordinator",
+    "country": "Netherlands",
+    "start_date": "2026-02-20"
+  },
+  {
+    "employee_id": 106,
+    "name": "Lukas Müller",
+    "department": "Engineering",
+    "role": "Data Engineer",
+    "country": "Germany",
+    "start_date": "2026-01-05"
+  },
+  {
+    "employee_id": 107,
+    "name": "Nina Schmidt",
+    "department": "Finance",
+    "role": "Accountant",
+    "country": "Germany",
+    "start_date": "2025-12-01"
+  },
+  {
+    "employee_id": 108,
+    "name": "Ruben Claes",
+    "department": "Operations",
+    "role": "Logistics Specialist",
+    "country": "Belgium",
+    "start_date": "2026-04-01"
+  }
+]
